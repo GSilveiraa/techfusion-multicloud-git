@@ -1,0 +1,80 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: SECRET
+  - name: TF_VERSION
+    value: '1.9.0'
+  - name: WORKING_DIR
+    value: 'infra'
+
+steps:
+  - checkout: self
+
+  - task: Bash@3
+    displayName: 'Instalar Terraform'
+    inputs:
+      targetType: 'inline'
+      script: |
+        echo "Instalando Terraform ${TF_VERSION}..."
+        curl -sLo terraform.zip https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip
+        sudo unzip -o terraform.zip -d /usr/local/bin
+        terraform -version
+
+  - task: Bash@3
+    displayName: 'Terraform init'
+    env:
+      ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+      ARM_TENANT_ID:       $(AZURE_TENANT_ID)
+      ARM_CLIENT_ID:       $(AZURE_CLIENT_ID)
+      ARM_CLIENT_SECRET:   $(AZURE_CLIENT_SECRET)
+      AWS_ACCESS_KEY_ID:     $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '$(WORKING_DIR)'
+      script: |
+        terraform init
+
+  - task: Bash@3
+    displayName: 'Terraform plan'
+    env:
+      ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+      ARM_TENANT_ID:       $(AZURE_TENANT_ID)
+      ARM_CLIENT_ID:       $(AZURE_CLIENT_ID)
+      ARM_CLIENT_SECRET:   $(AZURE_CLIENT_SECRET)
+      AWS_ACCESS_KEY_ID:     $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '$(WORKING_DIR)'
+      script: |
+        terraform plan \
+          -var "azure_subscription_id=$(AZURE_SUBSCRIPTION_ID)" \
+          -var "azure_tenant_id=$(AZURE_TENANT_ID)" \
+          -var "azure_client_id=$(AZURE_CLIENT_ID)" \
+          -var "azure_client_secret=$(AZURE_CLIENT_SECRET)"
+
+  - task: Bash@3
+    displayName: 'Terraform apply'
+    env:
+      ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+      ARM_TENANT_ID:       $(AZURE_TENANT_ID)
+      ARM_CLIENT_ID:       $(AZURE_CLIENT_ID)
+      ARM_CLIENT_SECRET:   $(AZURE_CLIENT_SECRET)
+      AWS_ACCESS_KEY_ID:     $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '$(WORKING_DIR)'
+      script: |
+        terraform apply -auto-approve \
+          -var "azure_subscription_id=$(AZURE_SUBSCRIPTION_ID)" \
+          -var "azure_tenant_id=$(AZURE_TENANT_ID)" \
+          -var "azure_client_id=$(AZURE_CLIENT_ID)" \
+          -var "azure_client_secret=$(AZURE_CLIENT_SECRET)"
